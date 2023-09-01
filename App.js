@@ -1,76 +1,83 @@
-import { StatusBar } from "expo-status-bar";
-import { Button, SafeAreaView, StyleSheet, Text, TextInput, View } from "react-native";
-import { useState } from "react";
-import * as SecureStore from 'expo-secure-store';
+import { StatusBar } from 'expo-status-bar';
+import { Button, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import * as SQLite from 'expo-sqlite';
+
+const db = SQLite.openDatabase("dados.db");
 
 export default function App() {
 
-  const [chave, setChave] = useState('');
-  const [valor, setValor] = useState('');
+  useEffect(() => {
+    db.transaction((tx) => {
+      tx.executeSql("create table if not exists pessoa (id integer primary key not null, nome text not null, phone text not null)");
+    });
+    updateTotal();
+  }, []);
 
-  const handleArmazenar = async () => {
-    if (chave !== '' && valor !== '') {
-      try {
-        await SecureStore.setItemAsync(chave, valor);
-        alert('Chave salva com sucesso');
-        setValor('');
-        setChave('');        
-      }
-      catch(e) {
-        alert('erro');
-      }
+  const gerar = (tamanho) => {
+    let nome = '';
+    let characters = '';
+    
+    characters = tamanho < 9 ? 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' : '0123456789';
+
+    for (let i = 0; i < tamanho; i++) {
+      nome += characters.charAt(Math.floor(Math.random() * characters.length));
     }
+    return nome;
+  };
+
+  const updateTotal = () => {
+    db.transaction((tx) => {
+      tx.executeSql("select count(id) as total from pessoa", [], (_,{rows}) =>        
+        setTotal(rows._array[0].total)
+      );
+    })
   }
 
-  const handleRecuperar = async () => {
-    if (chave !== '') {
-      try {
-        let v = await SecureStore.getItemAsync(chave); 
-        if(v !== null){
-          setValor(v);
-        }
-      }
-      catch {
-        alert('erro');
-      }
-    }
+  const addPessoa = () => {
+    const nome = gerar(6);
+    const phone = gerar(11);
+
+    db.transaction((tx) => {
+      tx.executeSql("insert into pessoa (nome, phone) values (?, ?)", [nome, phone]);
+    });
+    updateTotal();
   }
 
-  const handleRemover = async () => {
-    if (chave !== ''){
-      try{
-        await SecureStore.deleteItemAsync(chave);
-        setChave('');
-        setValor('');
-      }
-      catch{
-        alert('erro');
-      }
-    }
+  const showAll = () => {
+    db.transaction((tx) => {
+      tx.executeSql("select id, nome, phone from pessoa", [], (trans, results)=>{
+        alert(JSON.stringify(results.rows._array));
+        console.log(results.rows._array);
+      });
+    })
   }
+
+  const removeAll = () => {
+    db.transaction((tx) => {
+      tx.executeSql("delete from pessoa");
+    });
+    updateTotal();
+  }
+
+  const [total, setTotal] = useState(0);
 
   return (
-    <>
-      <SafeAreaView style={styles.container}>
-        <Text>Chave</Text>
-        <TextInput style={{ backgroundColor: '#ccc', width: 300 }} value={chave} onChangeText={setChave} />
-        <Text>Valor</Text>
-        <TextInput style={{ backgroundColor: '#ccc', width: 300 }} value={valor} onChangeText={setValor} />
-        <Button title="Armazenar" onPress={handleArmazenar} />
-        <Button title="Recuperar" onPress={handleRecuperar} />
-        <Button title="Remover" onPress={handleRemover}/>
-      </SafeAreaView >
-      <StatusBar style="dark" />
-    </>
-  )
+    <View style={styles.container}>
+      <Text>Cadastros: {total}</Text>
+      <Button title='Inserir' onPress={addPessoa} />
+      <Button title='Exibir todos' onPress={showAll}/>
+      <Button title='Remover todos' onPress={removeAll}/>
+      <StatusBar style="auto" />
+    </View>
+  );
 }
 
-const styles = StyleSheet.create(
-  {
-    container: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-    }
-  }
-)
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
