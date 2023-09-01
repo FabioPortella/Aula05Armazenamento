@@ -58,6 +58,7 @@ export default function App() {
   
     if ((await FileSystem.getInfoAsync(FileSystem.documentDirectory + path)).exists) {
       await FileSystem.deleteAsync(FileSystem.documentDirectory + path);
+      alert('Pasta removida')
       console.log('Pasta removida');
     }
   }
