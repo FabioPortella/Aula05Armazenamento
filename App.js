@@ -1,73 +1,78 @@
 import { StatusBar } from 'expo-status-bar';
 import { Button, StyleSheet, Text, View } from 'react-native';
 import { useEffect, useState } from 'react';
-import * as SQLite from 'expo-sqlite';
-
-const db = SQLite.openDatabase("dados.db");
+import * as FileSystem from 'expo-file-system';
 
 export default function App() {
 
-  useEffect(() => {
-    db.transaction((tx) => {
-      tx.executeSql("create table if not exists pessoa (id integer primary key not null, nome text not null, phone text not null)");
-    });
-    updateTotal();
-  }, []);
+  const path = '/dados/';
+  const file = 'exemplo.txt';
 
-  const gerar = (tamanho) => {
-    let nome = '';
-    let characters = '';
-    
-    characters = tamanho < 9 ? 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' : '0123456789';
+  const criarPasta = async () => {
 
-    for (let i = 0; i < tamanho; i++) {
-      nome += characters.charAt(Math.floor(Math.random() * characters.length));
+    if ((await FileSystem.getInfoAsync(FileSystem.documentDirectory + path)).exists === false) {
+      await FileSystem.makeDirectoryAsync(FileSystem.documentDirectory + path);
+      alert('Pasta criada');
+      console.log('Pasta criada');
     }
-    return nome;
-  };
-
-  const updateTotal = () => {
-    db.transaction((tx) => {
-      tx.executeSql("select count(id) as total from pessoa", [], (_,{rows}) =>        
-        setTotal(rows._array[0].total)
-      );
-    })
+    else {
+      alert('Pasta já existe');
+      console.log('Pasta já existe');
+    }
+  
+    if ((await FileSystem.getInfoAsync(FileSystem.documentDirectory + path + file)).exists === false) {
+      await FileSystem.writeAsStringAsync(FileSystem.documentDirectory + path + file, '');
+      console.log('Arquivo criado');
+    }
+    else {
+      console.log('Arquivo já existe');
+    }
   }
 
-  const addPessoa = () => {
-    const nome = gerar(6);
-    const phone = gerar(11);
-
-    db.transaction((tx) => {
-      tx.executeSql("insert into pessoa (nome, phone) values (?, ?)", [nome, phone]);
-    });
-    updateTotal();
+  const addTexto = async () => {
+    if ((await FileSystem.getInfoAsync(FileSystem.documentDirectory + path + file)).exists === false) {
+      alert('Arquivo não criado');
+    }
+    else {
+      const num = Math.floor(Math.random() * 100);
+      await FileSystem.writeAsStringAsync(FileSystem.documentDirectory + path + file, 'Sorteei o número: ' + num);
+      alert('Número ' + num + ' sorteado com sucesso');
+    }
   }
 
-  const showAll = () => {
-    db.transaction((tx) => {
-      tx.executeSql("select id, nome, phone from pessoa", [], (trans, results)=>{
-        alert(JSON.stringify(results.rows._array));
-        console.log(results.rows._array);
-      });
-    })
+  const readTexto = async () => {
+    if ((await FileSystem.getInfoAsync(FileSystem.documentDirectory + path + file)).exists === false) {
+      alert('Arquivo não criado');
+    }
+    else {
+      const data = await FileSystem.readAsStringAsync(FileSystem.documentDirectory + path + file);
+      alert(data);
+    }
   }
 
-  const removeAll = () => {
-    db.transaction((tx) => {
-      tx.executeSql("delete from pessoa");
-    });
-    updateTotal();
+  const deletePasta = async () => {
+    if ((await FileSystem.getInfoAsync(FileSystem.documentDirectory + path + file)).exists) {
+      await FileSystem.deleteAsync(FileSystem.documentDirectory + path + file);
+      console.log('Arquivo removido');
+    }
+  
+    if ((await FileSystem.getInfoAsync(FileSystem.documentDirectory + path)).exists) {
+      await FileSystem.deleteAsync(FileSystem.documentDirectory + path);
+      console.log('Pasta removida');
+    }
   }
-
-  const [total, setTotal] = useState(0);
 
   return (
     <View style={styles.container}>
-      <Text>Cadastros: {total}</Text>
-      <Button title='Inserir' onPress={addPessoa} />
-      <Button title='Exibir todos' onPress={showAll}/>
-      <Button title='Remover todos' onPress={removeAll}/>
+      <Text>Exemplo de sistema de arquivos</Text>
+      <Text></Text>
+      <Button title='Criar pasta e arquivo' onPress={criarPasta} />
+      <Text></Text>
+      <Button title='Adicionar texto no arquivo' onPress={addTexto} />
+      <Text></Text>
+      <Button title='Ler texto do arquivo' onPress={readTexto} />
+      <Text></Text>
+      <Button title='Apagar arquivo e pasta' onPress={deletePasta}/>
       <StatusBar style="auto" />
     </View>
   );
